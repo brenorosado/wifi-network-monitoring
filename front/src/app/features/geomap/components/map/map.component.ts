@@ -11,7 +11,7 @@ import Feature, { FeatureLike } from "ol/Feature";
 import OSM from "ol/source/OSM";
 import ImageLayer from 'ol/layer/Image';
 import { Measure } from '../../utils/generateMockedMeasures';
-import { gatherCloseMeasures } from '../../utils/handleMeasures';
+import { buildMatrixAndAggregate } from '../../utils/handleMeasures';
 import { formDefaultValues, FormValuesType } from '../../pages/map/map.page';
 import { StyleFunction } from 'ol/style/Style';
 import { BAD_COST_DEFAULT_COLOR, BAD_RSSI_DEFAULT_COLOR, GOOD_COST_DEFAULT_COLOR, GOOD_RSSI_DEFAULT_COLOR, REGULAR_COST_DEFAULT_COLOR, REGULAR_RSSI_DEFAULT_COLOR } from '../../../configs/pages/config/config.page';
@@ -85,7 +85,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnChanges {
             url: 'http://localhost:8080/geoserver/wms',
             params: {
               'LAYERS': 'csn_workspace:congonhas_2018_2019',
-              'FORMAT': 'image/jpeg'
+              'FORMAT': 'image/png'
             },
             ratio: 1,
             serverType: 'geoserver',
@@ -101,6 +101,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnChanges {
       })
     });
 
+    this.map.on('moveend', () => this.addPolygons());
     this.addPolygons();
   }
 
@@ -141,30 +142,34 @@ export class MapComponent implements OnInit, AfterViewInit, OnChanges {
     const precision = Number(this.formValues.precision);
     const dataType = this.formValues.dataType;
 
+    const DEFAULT_EXTENT: [number, number, number, number] =
+      [-43.976368616, -20.510904917, -43.824099190, -20.410643808];
+    const extent = (this.map?.getView().calculateExtent(this.map.getSize()) as [number, number, number, number])
+      ?? DEFAULT_EXTENT;
+
     const {
       goodCoordinates,
       regularCoordinates,
       badCoordinates
-    } = gatherCloseMeasures(this.measures.filter(this.filterMeasures), precision, dataType);
+    } = buildMatrixAndAggregate(this.measures.filter(this.filterMeasures), precision, dataType, extent);
 
-    [
-      badCoordinates,
-      regularCoordinates,
-      goodCoordinates
-    ].forEach((coordinates, index) => {
-      const measuresGeometry = new Polygon(coordinates)
-        .transform('EPSG:4326', this.map?.getView().getProjection());
-      
-      const polygonsFeatures = new Feature(measuresGeometry);
-      
-      polygonsFeatures.setProperties({
-        qualityClassification: ['bad', 'regular', 'good'][index],
-        dataType
+    const qualityGroups = [
+      { coords: badCoordinates, quality: 'bad' },
+      { coords: regularCoordinates, quality: 'regular' },
+      { coords: goodCoordinates, quality: 'good' },
+    ];
+
+    qualityGroups.forEach(({ coords, quality }) => {
+      coords.forEach((cellCoords) => {
+        const measuresGeometry = new Polygon([cellCoords])
+          .transform('EPSG:4326', this.map?.getView().getProjection());
+
+        const polygonsFeatures = new Feature(measuresGeometry);
+
+        polygonsFeatures.setProperties({ qualityClassification: quality, dataType });
+
+        this.polygonsLayer?.getSource()?.addFeature(polygonsFeatures);
       });
-      
-      this.polygonsLayer
-        ?.getSource()
-        ?.addFeature(polygonsFeatures);
     });
 
     if (this.updatePolygonsLayer && this.polygonsLayer)

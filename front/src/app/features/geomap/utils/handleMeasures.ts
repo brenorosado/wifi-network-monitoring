@@ -21,76 +21,56 @@ export type ClassifiedGatheredMeasures = {
     badCoordinates: number[][][]
 }
 
-const calculateAverageCoordinatesAndConnection = (
-    measures: Measure[],
-    dataType: "custo" | "rssi"
-): {
-    averageLatitude: number;
-    averageLongitude: number;
-    averageCost: number;
-    averageRssi: number;
-} => {
-    let accumulatedLatitude = 0;
-    let accumulatedLongitude = 0;
-    let accumulatedCost = 0;
-    let accumulatedRssi = 0;
 
-    measures.forEach(({ latitude, longitude, cost, rssi }) => {
-        accumulatedLatitude += latitude;
-        accumulatedLongitude += longitude;
-        accumulatedCost += cost;
-        accumulatedRssi += rssi;
-    });
-
-    const minCost = Math.min(...measures.map(({ cost }) => cost));
-
-    return {
-        averageLatitude: accumulatedLatitude / measures.length,
-        averageLongitude: accumulatedLongitude / measures.length,
-        averageCost: dataType === "custo"
-            ? minCost : (accumulatedCost / measures.length),
-        averageRssi: accumulatedRssi / measures.length
-    }
-}
-
-export const gatherCloseMeasures = (
+export const buildMatrixAndAggregate = (
     measures: Measure[],
     precision: number,
-    dataType: "custo" | "rssi"
+    dataType: "custo" | "rssi",
+    extent: [number, number, number, number]
 ): ClassifiedGatheredMeasures => {
-    const gatheredMeasures: GatheredMockedMeasures[] = [];
+    const [minLon, minLat, maxLon, maxLat] = extent;
+    const cellMap = new Map<string, Measure[]>();
 
+    // Assign each measure to its absolute grid cell (anchored to 0,0 — not the viewport)
     measures.forEach((measure) => {
-        const { latitude, longitude } = measure;
-        let gathered = false;
+        const col = Math.floor(measure.longitude / precision);
+        const row = Math.floor(measure.latitude / precision);
+        const key = `${col},${row}`;
+        const existing = cellMap.get(key) ?? [];
+        cellMap.set(key, [...existing, measure]);
+    });
 
-        for (let i = 0; i < gatheredMeasures.length; i++) {
-            const { averageLatitude, averageLongitude } = gatheredMeasures[i];
+    const gatheredMeasures: GatheredMockedMeasures[] = [];
+    let id = 1;
 
-            const distance = Math.sqrt(
-                Math.pow(latitude - averageLatitude, 2) +
-                Math.pow(longitude - averageLongitude, 2)
-            );
+    cellMap.forEach((cellMeasures, key) => {
+        const [col, row] = key.split(',').map(Number);
+        const cellMinLon = col * precision;
+        const cellMinLat = row * precision;
+        const cellCenterLon = cellMinLon + precision / 2;
+        const cellCenterLat = cellMinLat + precision / 2;
 
-            if (distance <= (2 * precision / Math.sqrt(2))) {
-                const newMeasures = [...gatheredMeasures[i].measures, measure];
-                gatheredMeasures[i] = {
-                    ...gatheredMeasures[i],
-                    measures: newMeasures,
-                    ...calculateAverageCoordinatesAndConnection(newMeasures, dataType)
-                }
-                gathered = true;
-                break;
-            }
-        }
+        // Skip cells outside the viewport
+        if (cellCenterLon < minLon || cellCenterLon > maxLon ||
+            cellCenterLat < minLat || cellCenterLat > maxLat) return;
 
-        if (!gathered) {
-            gatheredMeasures.push({
-                id: gatheredMeasures.length + 1,
-                measures: [measure],
-                ...calculateAverageCoordinatesAndConnection([measure], dataType)
-            });
-        }
+        let accCost = 0;
+        let accRssi = 0;
+        cellMeasures.forEach(({ cost, rssi }) => {
+            accCost += cost;
+            accRssi += rssi;
+        });
+
+        gatheredMeasures.push({
+            id: id++,
+            averageLongitude: cellCenterLon,
+            averageLatitude: cellCenterLat,
+            averageCost: dataType === "custo"
+                ? Math.min(...cellMeasures.map(({ cost }) => cost))
+                : accCost / cellMeasures.length,
+            averageRssi: accRssi / cellMeasures.length,
+            measures: cellMeasures
+        });
     });
 
     return classifyGatheredMeasures(gatheredMeasures, precision, dataType);

@@ -38,6 +38,7 @@ services:
     depends_on:
       - db
 
+
   frontend:
     build:
       context: ./front
@@ -69,9 +70,10 @@ services:
       dockerfile: Dockerfile.publish
     container_name: publish_geotiff
     depends_on:
-      - geoserver
+      geoserver:
+        condition: service_healthy
     volumes:
-      - ./CONGONHAS_2018_2019.tif:/app/CONGONHAS_2018_2019.tif
+      - ./CONGONHAS_2018_2019_optimized.tif:/app/CONGONHAS_2018_2019_optimized.tif
 
   netminer_python:
     build:

@@ -1,4 +1,4 @@
-FROM node:20.14-alpine3.19
+FROM node:22-alpine
 WORKDIR /front
 COPY . /front
 RUN npm install -g @angular/cli

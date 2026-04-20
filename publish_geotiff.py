@@ -7,7 +7,7 @@ geo = Geoserver('http://geoserver:8080/geoserver', username='admin', password='g
 workspace_name = 'csn_workspace'
 coveragestore_name = 'csn_coveragestore'
 layer_name = 'congonhas_2018_2019'
-geotiff_path = './CONGONHAS_2018_2019.tif'
+geotiff_path = '/app/CONGONHAS_2018_2019_optimized.tif'
 
 # Create workspace if it does not exist
 workspaces = geo.get_workspaces()
