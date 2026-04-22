@@ -3,9 +3,13 @@
 ## COMO RODAR O DOCKER CONTENDO FRONT, API, BANCO E GEOSERVER
 
 - Instale o docker e docker compose. [Documentação aqui](https://docs.docker.com/compose/install/);
-- Clique [aqui](https://drive.google.com/file/d/1n77TidZlFQvViA5-zXF7DgKl2npX_5Og/view?usp=sharing) para baixar a imagem georeferenciada já otimizada (`CONGONHAS_2018_2019_optimized.tif`, ~196 MB).
+- Clique [aqui](https://drive.google.com/file/d/1ssTm9rh9zTNjvvFZsKqdUj9yWpEGcszS/view?usp=drive_link) para baixar a imagem georeferenciada já otimizada (`CONGONHAS_2018_2019_optimized.tif`, ~196 MB).
 - Insira o arquivo baixado na pasta raiz do projeto mantendo o nome `CONGONHAS_2018_2019_optimized.tif`.
-- No terminal, navegue até este diretório e execute `docker compose up --build` ou `docker-compose up --build` para versões antigas;
+- No terminal, navegue até este diretório e execute:
+
+```bash
+docker compose up --build
+```
 
 - Instâncias:
   - FRONT: http://localhost:3000/

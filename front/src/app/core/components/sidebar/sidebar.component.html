@@ -1,17 +1,16 @@
 <div class="sidebar-container">
-    <aside class="sidebar">
-        <img src="../../../../assets/csn_logo_small.png" />
-        <ul>
-            <li *ngFor="let item of activeSidebarItems">
-                <a
-                    [ngClass]="item.isActive() ? 'selected' : 'not-selected'"
-                    routerLink="{{item.url}}"
-                    routerLinkActive="active"
-                >
-                    <span>{{item.title}}</span>
-                    <ng-icon name="{{item.iconName}}"></ng-icon>
-                </a>
-            </li>
-        </ul>
-    </aside>
+  <aside class="sidebar">
+    <ul>
+      <li *ngFor="let item of activeSidebarItems">
+        <a
+          [ngClass]="item.isActive() ? 'selected' : 'not-selected'"
+          routerLink="{{ item.url }}"
+          routerLinkActive="active"
+        >
+          <span>{{ item.title }}</span>
+          <ng-icon name="{{ item.iconName }}"></ng-icon>
+        </a>
+      </li>
+    </ul>
+  </aside>
 </div>
