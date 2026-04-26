@@ -69,34 +69,88 @@ const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 const randDate = (start: Date, end: Date) =>
     new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 
+const FIXA_EQUIPAMENTS = [
+    { equipament: 'Radio Fixo 1', description: 'Rádio fixo setor norte', sigla: 'FIXA_NORTE_01' },
+    { equipament: 'Radio Fixo 2', description: 'Rádio fixo setor sul', sigla: 'FIXA_SUL_01' },
+    { equipament: 'Radio Fixo 3', description: 'Rádio fixo setor leste', sigla: 'FIXA_LESTE_01' },
+];
+
+const FIXA_IPS = ['10.10.1.1', '10.10.1.2', '10.10.1.3'];
+const NON_FIXA_IP = '192.168.0.1';
+const IP_SOURCE = '192.168.0.2';
+
 export async function seed(knex: Knex): Promise<void> {
     await knex('peer').del();
+    await knex('system').del();
+    await knex('equipament').del();
 
-    const rows = ([] as object[]).concat(...BASE_POINTS.map(([lat, lon]: [number, number]) =>
-        Array.from({ length: MEASURES_PER_POINT }, () => ({
-            timestamp: randDate(START_DATE, END_DATE).toISOString(),
-            latitude: lat + rand(-JITTER, JITTER),
-            longitude: lon + rand(-JITTER, JITTER),
-            altitude: 0,
-            speed: rand(0, 100),
-            macsource: '00:00:00:00:00:01',
-            macdestination: '00:00:00:00:00:02',
-            action: 0,
-            enabled: 1,
-            cost: Math.round(rand(0, 200)),
-            rate: 0,
-            rssi: Math.round(rand(-110, 0)),
-            signal_ok: 1,
-            age: 0,
-            stats: 0,
-            encapId: 0,
-            ipv4Address: '192.168.0.1',
-            ip: '192.168.0.2',
-            txpower: 0,
-            version: 0,
-            linkLocalAddress: '',
-        }))
-    ));
+    const equipamentRows = await knex('equipament')
+        .insert(FIXA_EQUIPAMENTS)
+        .returning('idequipament');
 
-    await knex('peer').insert(rows);
+    const equipamentIds = equipamentRows.map((r: any) =>
+        typeof r === 'object' ? r.idequipament : r
+    );
+
+    const systemRows = FIXA_IPS.map((ip, i) => ({
+        description: `Sistema rádio fixo ${i + 1}`,
+        platform: 'linux',
+        uptime: 0,
+        idle: 0,
+        running: 1,
+        bridgeup: 1,
+        version: '1.0.0',
+        freeMemory: 512,
+        generateEntropy: 0,
+        factoryMode: 0,
+        networkId: i + 1,
+        ipv4address: ip,
+        subnet: '255.255.255.0',
+        gateway: '10.10.1.254',
+        dns: '8.8.8.8',
+        ipv6address: '',
+        encapId: 0,
+        locked: 0,
+        reboot: 0,
+        legacyPlatform: '',
+        temperature: 40,
+        isRebooting: 0,
+        bootCounter: 1,
+        idequipament_fk: equipamentIds[i],
+    }));
+
+    await knex('system').insert(systemRows);
+
+    const allRows: object[] = [];
+    BASE_POINTS.forEach(([lat, lon]: [number, number], pointIndex: number) => {
+        const useFixa = pointIndex < Math.floor(BASE_POINTS.length / 2);
+        Array.from({ length: MEASURES_PER_POINT }, () => {
+            const fixaIp = FIXA_IPS[pointIndex % FIXA_IPS.length];
+            allRows.push({
+                timestamp: randDate(START_DATE, END_DATE).toISOString(),
+                latitude: lat + rand(-JITTER, JITTER),
+                longitude: lon + rand(-JITTER, JITTER),
+                altitude: 0,
+                speed: rand(0, 100),
+                macsource: '00:00:00:00:00:01',
+                macdestination: '00:00:00:00:00:02',
+                action: 0,
+                enabled: 1,
+                cost: Math.round(rand(0, 200)),
+                rate: 0,
+                rssi: Math.round(rand(-110, 0)),
+                signal_ok: 1,
+                age: 0,
+                stats: 0,
+                encapId: 0,
+                ipv4Address: useFixa ? fixaIp : NON_FIXA_IP,
+                ip: IP_SOURCE,
+                txpower: 0,
+                version: 0,
+                linkLocalAddress: '',
+            });
+        });
+    });
+
+    await knex('peer').insert(allRows);
 }

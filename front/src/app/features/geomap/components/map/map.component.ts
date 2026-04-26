@@ -36,7 +36,6 @@ export const polygonStyleFunction: StyleFunction = (feature: FeatureLike) => {
 
   const connectionStyle = new Style({
     fill: new Fill({
-      // @ts-ignore
       color: hexToRgb(colors[dataType][qualityClassification]?.replace("#", ""), 0.4),
     }),
     stroke: new Stroke({
