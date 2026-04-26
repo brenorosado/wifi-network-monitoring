@@ -18,8 +18,8 @@ import { BAD_COST_DEFAULT_COLOR, BAD_RSSI_DEFAULT_COLOR, GOOD_COST_DEFAULT_COLOR
 import { hexToRgb } from '../../utils/colors';
 
 export const polygonStyleFunction: StyleFunction = (feature: FeatureLike) => {
-  const qualityClassification = feature.get('qualityClassification');
-  const dataType = feature.get('dataType');
+  const qualityClassification = feature.get('qualityClassification') as 'good' | 'regular' | 'bad';
+  const dataType = feature.get('dataType') as 'custo' | 'rssi';
 
   const colors = {
     "custo": {
@@ -117,24 +117,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnChanges {
     this.addPolygons()
   }
 
-  filterMeasures = ({ timestamp }: Measure) => {
-    const { startAt, endAt } = this.formValues;
-
-    if (
-      startAt
-      && Number(new Date(timestamp)) <= Number(new Date(startAt))
-    )
-      return false;
-
-    if (
-      endAt
-      && Number(new Date(timestamp)) >= Number(new Date(endAt))
-    )
-      return false;
-
-    return true;
-  }
-
   addPolygons() {
     this?.polygonsLayer?.getSource()?.clear();
 
@@ -150,7 +132,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnChanges {
       goodCoordinates,
       regularCoordinates,
       badCoordinates
-    } = buildMatrixAndAggregate(this.measures.filter(this.filterMeasures), precision, dataType, extent);
+    } = buildMatrixAndAggregate(this.measures, precision, dataType, extent);
 
     const qualityGroups = [
       { coords: badCoordinates, quality: 'bad' },

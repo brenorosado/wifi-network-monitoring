@@ -60,8 +60,7 @@ const BASE_POINTS: [number, number][] = [
 ];
 
 const START_DATE = new Date('2019-01-01');
-const END_DATE = new Date('2023-12-31');
-const MEASURES_PER_POINT = 9;
+const END_DATE = new Date();
 // ~10 meters in degrees
 const JITTER = 0.0001;
 
@@ -122,35 +121,42 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('system').insert(systemRows);
 
     const allRows: object[] = [];
-    BASE_POINTS.forEach(([lat, lon]: [number, number], pointIndex: number) => {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const totalDays = Math.floor((END_DATE.getTime() - START_DATE.getTime()) / msPerDay);
+
+    for (let d = 0; d <= totalDays; d++) {
+        const dayStart = new Date(START_DATE.getTime() + d * msPerDay);
+        const dayEnd = new Date(dayStart.getTime() + msPerDay - 1);
+
+        const pointIndex = Math.floor(Math.random() * BASE_POINTS.length);
+        const [lat, lon] = BASE_POINTS[pointIndex];
         const useFixa = pointIndex < Math.floor(BASE_POINTS.length / 2);
-        Array.from({ length: MEASURES_PER_POINT }, () => {
-            const fixaIp = FIXA_IPS[pointIndex % FIXA_IPS.length];
-            allRows.push({
-                timestamp: randDate(START_DATE, END_DATE).toISOString(),
-                latitude: lat + rand(-JITTER, JITTER),
-                longitude: lon + rand(-JITTER, JITTER),
-                altitude: 0,
-                speed: rand(0, 100),
-                macsource: '00:00:00:00:00:01',
-                macdestination: '00:00:00:00:00:02',
-                action: 0,
-                enabled: 1,
-                cost: Math.round(rand(0, 200)),
-                rate: 0,
-                rssi: Math.round(rand(-110, 0)),
-                signal_ok: 1,
-                age: 0,
-                stats: 0,
-                encapId: 0,
-                ipv4Address: useFixa ? fixaIp : NON_FIXA_IP,
-                ip: IP_SOURCE,
-                txpower: 0,
-                version: 0,
-                linkLocalAddress: '',
-            });
+        const fixaIp = FIXA_IPS[pointIndex % FIXA_IPS.length];
+
+        allRows.push({
+            timestamp: randDate(dayStart, dayEnd).toISOString(),
+            latitude: lat + rand(-JITTER, JITTER),
+            longitude: lon + rand(-JITTER, JITTER),
+            altitude: 0,
+            speed: rand(0, 100),
+            macsource: '00:00:00:00:00:01',
+            macdestination: '00:00:00:00:00:02',
+            action: 0,
+            enabled: 1,
+            cost: Math.round(rand(0, 200)),
+            rate: 0,
+            rssi: Math.round(rand(-110, 0)),
+            signal_ok: 1,
+            age: 0,
+            stats: 0,
+            encapId: 0,
+            ipv4Address: useFixa ? fixaIp : NON_FIXA_IP,
+            ip: IP_SOURCE,
+            txpower: 0,
+            version: 0,
+            linkLocalAddress: '',
         });
-    });
+    }
 
     await knex('peer').insert(allRows);
 }

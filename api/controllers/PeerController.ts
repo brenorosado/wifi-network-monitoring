@@ -36,22 +36,24 @@ class PeerController {
     }
 
     async show(request: Request, response: Response) {
-        const { id } = request.body;
+        const { id, startAt, endAt } = request.body;
         const { type } = request.query;
-        let peer = undefined;
+        let query;
 
         if (id) {
-            peer = await knex('peer').where('idpeer', id).first();
+            query = knex('peer').where('idpeer', id).first();
+        } else if (type != null && type == 'cost') {
+            query = knex('peer').whereNotNull('cost');
+        } else if (type != null && type == 'rssi') {
+            query = knex('peer').whereNotNull('rssi');
+        } else {
+            query = knex('peer').select('*');
         }
-        else if (type != null && type == 'cost') {
-            peer = await knex('peer').whereNotNull('cost');
-        }
-        else if (type != null && type == 'rssi') {
-            peer = await knex('peer').whereNotNull('rssi');
-        }
-        else {
-            peer = await knex('peer').select('*');
-        }
+
+        if (startAt) query = query.where('timestamp', '>=', startAt);
+        if (endAt) query = query.where('timestamp', '<=', endAt);
+
+        const peer = await query;
 
         if (!peer) {
             return response.status(400).json({ message: 'mac not found.' });
@@ -61,18 +63,20 @@ class PeerController {
     }
 
     async getPeersForRssi(request: Request, response: Response) {
-        // atualizado
-        // peer.ip -> ip source
-        // peer.ipv4Address = ip destination
+        const { startAt, endAt } = request.body;
 
-        const peers = await knex.raw(`
-            SELECT peer.* FROM peer
-            JOIN system ON peer."ipv4Address" = system."ipv4address"
-            JOIN equipament ON system."idequipament_fk" = equipament."idequipament"
-            WHERE equipament.sigla LIKE 'FIXA%';
-        `);
+        let query = knex('peer')
+            .select('peer.*')
+            .join('system', 'peer.ipv4Address', 'system.ipv4address')
+            .join('equipament', 'system.idequipament_fk', 'equipament.idequipament')
+            .whereLike('equipament.sigla', 'FIXA%');
 
-        return response.json(peers.rows);
+        if (startAt) query = query.where('peer.timestamp', '>=', startAt);
+        if (endAt) query = query.where('peer.timestamp', '<=', endAt);
+
+        const peers = await query;
+
+        return response.json(peers);
     }
 
     async update(request: Request, response: Response) {

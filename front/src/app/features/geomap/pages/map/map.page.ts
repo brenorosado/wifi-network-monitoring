@@ -105,9 +105,10 @@ export class MapPage {
       try {
         this.loadingMeasures = true;
   
+        const range = { startAt: this.formValues.startAt, endAt: this.formValues.endAt };
         const fetchedMeasures = await fetchMeasures[
           this.formValues.dataType === "rssi" ? "listPeersForRssi" : "list"
-        ]();
+        ](range);
         
         this.measures = fetchedMeasures.filter(
           ({ latitude, longitude }) => 
